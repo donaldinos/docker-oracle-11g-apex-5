@@ -6,7 +6,7 @@ Oracle Express Edition 11g Release 2 on Ubuntu 14.04.1 LTS with APEX 5.1 and ORD
 
 #### Get the image code from github:
 
-    git clone --depth=1 https://github.com/araczkowski/docker-oracle-apex-ords.git <own-image-name>
+    git clone --depth=1 https://github.com/donaldinos/docker-oracle-11g-apex-5.git <own-image-name>
     cd <own-image-name>
 
 #### Building your own image, with custom password:
@@ -15,7 +15,7 @@ Oracle Express Edition 11g Release 2 on Ubuntu 14.04.1 LTS with APEX 5.1 and ORD
 
 #### Run the container based on your own image with 8080, 1521, 22 ports opened:
 
-    docker run -d --name <own-container-name> -p 8080:8080 -p 1521:1521 <own-image-name>
+    docker run -d --name <own-container-name>  -v /my/oracle/data:/u01/app/oracle -v /my/tomcat/webapps:/tomcat/webapps -p 8080:8080 -p 1521:1521 <own-image-name>
 
 # Option 2. Get the prebuilt image from docker hub
 
@@ -25,7 +25,7 @@ Oracle Express Edition 11g Release 2 on Ubuntu 14.04.1 LTS with APEX 5.1 and ORD
 
 #### Run the container based on prebuilt image from docker with 8080, 1521, 22 ports opened:
 
-    docker run -d --name <own-container-name> -p 8080:8080 -p 1521:1521 araczkowski/oracle-apex-ords    
+    docker run -d --name <own-container-name> -v /my/oracle/data:/u01/app/oracle -v /my/tomcat/webapps:/tomcat/webapps -p 8080:8080 -p 1521:1521 donaldinos/oracle_apex5    
 
 #### Password for SYS & SYSTEM & Tomcat ADMIN & APEX ADMIN:
 
