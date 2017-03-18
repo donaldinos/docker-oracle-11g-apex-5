@@ -21,15 +21,15 @@ Oracle Express Edition 11g Release 2 on Ubuntu 14.04.1 LTS with APEX 5.1 and ORD
 
 #### Installation:
 
-    docker pull araczkowski/oracle-apex-ords
+    docker pull donaldinos/oracle-11g-apex-5
 
 #### Run the container based on prebuilt image from docker with 8080, 1521, 22 ports opened:
 
-    docker run -d --name <own-container-name> -v /my/oracle/data:/u01/app/oracle -v /my/tomcat/webapps:/tomcat/webapps -p 8080:8080 -p 1521:1521 donaldinos/oracle_apex5    
+    docker run -d --name <own-container-name> -v /my/oracle/data:/u01/app/oracle -v /my/tomcat/webapps:/tomcat/webapps -p 8080:8080 -p 1521:1521 donaldinos/oracle-11g-apex-5    
 
 #### Password for SYS & SYSTEM & Tomcat ADMIN & APEX ADMIN:
 
-        secret
+    secret
 
 
 # Connect to server in container (Option 1. / Option 2.)

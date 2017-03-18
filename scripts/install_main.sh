@@ -6,9 +6,9 @@ exec 2>&1
 apt-get update && apt-get install -y unzip vim curl
 
 # Download files
-#echo "--------------------------------------------------"
-#echo "Downloading all files............................."
-#./scripts/download_files.sh
+echo "--------------------------------------------------"
+echo "Downloading all files............................."
+./scripts/download_files.sh
 #
 #
 echo "--------------------------------------------------"
