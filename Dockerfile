@@ -2,8 +2,7 @@ FROM ubuntu:14.04
 
 MAINTAINER Daniel Kacer <donaldinos@gmail.com>
 
-ARG PASSWORD
-ENV PASSWORD ${PASSWORD:-secret}
+ENV PASSWORD secret
 
 # get rid of the message: "debconf: unable to initialize frontend: Dialog"
 ENV DEBIAN_FRONTEND noninteractive
@@ -15,13 +14,11 @@ ADD scripts/install_main.sh /
 
 # all installation files
 COPY scripts /scripts
-COPY files /files
-
 # ! to speed up the build process - only to tests the build process !!!
 # COPY files /files
 # ! to speed up the build process - only to tests the build process !!!
 
-RUN apt-get update && apt-get install -y -q libaio1 net-tools bc curl rlwrap && \
+RUN apt-get update && apt-get install -y -q libaio1 net-tools bc curl rlwrap unzip vim && \
 apt-get clean && \
 rm -rf /tmp/* /var/lib/apt/lists/* /var/tmp/* &&\
 ln -s /usr/bin/awk /bin/awk &&\
@@ -36,6 +33,10 @@ ENV ORACLE_SID=XE
 EXPOSE 1521 8080
 VOLUME ["/u01/app/oracle"]
 VOLUME ["/tomcat/webapps"]
+
+ENV processes 500
+ENV sessions 555
+ENV transactions 610
 
 # ENTRYPOINT
 ADD entrypoint.sh /

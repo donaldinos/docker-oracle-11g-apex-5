@@ -41,14 +41,23 @@ EOL
 case "$1" in
 	'')
 		#Check for mounted database files
-		if [ "$(ls -A /u01/app/oracle/oradata)" ]; then
-			echo "found files in /u01/app/oracle/oradata Using them instead of initial database"
+		if [ "$(ls -A /u01/app/oracle/oradata/XE)" ]; then
+			echo "found files in /u01/app/oracle/oradata/XE Using them instead of initial database"
 			echo "XE:$ORACLE_HOME:N" >> /etc/oratab
 			chown oracle:dba /etc/oratab
 			chown 664 /etc/oratab
-			printf "ORACLE_DBENABLED=false\nLISTENER_PORT=1521\nHTTP_PORT=8888\nCONFIGURE_RUN=true\n" > /etc/default/oracle-xe
+			printf "ORACLE_DBENABLED=false\nLISTENER_PORT=1521\nHTTP_PORT=8080\nCONFIGURE_RUN=true\n" > /etc/default/oracle-xe
 			rm -rf /u01/app/oracle-product/11.2.0/xe/dbs
 			ln -s /u01/app/oracle/dbs /u01/app/oracle-product/11.2.0/xe/dbs
+
+			echo "Activate ords..."
+			cd /u01/ords
+			sed -i -E 's:secret:'$PASSWORD':g' /scripts/ords_params.properties
+			cp -rf /scripts/ords_params.properties /u01/ords/params
+
+			java -jar ords.war configdir /u01
+			java -jar ords.war install simple
+			echo "ORDS activated."
 		else
 			echo "Database not initialized. Initializing database."
 
@@ -75,21 +84,116 @@ case "$1" in
 			sed -i -E "s/transactions=[^)]+/transactions=$transactions/g" /u01/app/oracle/product/11.2.0/xe/config/scripts/init.ora
 			sed -i -E "s/transactions=[^)]+/transactions=$transactions/g" /u01/app/oracle/product/11.2.0/xe/config/scripts/initXETemp.ora
 
-			printf 8888\\n1521\\noracle\\noracle\\ny\\n | /etc/init.d/oracle-xe configure
+			printf 8888\\n1521\\n$PASSWORD\\n$PASSWORD\\ny\\n | /etc/init.d/oracle-xe configure
 
 			echo "Database initialized."
+			echo "==================================================================================================================="
+			echo "Apex not initialized. Initializing apex."
+
+			
+			SQLPLUS=$ORACLE_HOME/bin/sqlplus
+			SQLPLUS_ARGS="/ as sysdba"
+
+			verify_connection(){
+				echo "exit" | su oracle -c "${SQLPLUS} -L $SQLPLUS_ARGS" | grep Connected > /dev/null
+				if [ $? -eq 0 ];
+				then
+					echo "Database Connetion is OK"
+				else
+					echo -e "Database Connection Failed. Connection failed with:\n $SQLPLUS -L $SQLPLUS_ARGS\n `$SQLPLUS -L $SQLPLUS_ARGS` < /dev/null"
+					exit 1
+				fi
+
+				if [ "$(ls -A /u01/app/oracle)" ]; then
+					echo "Check Database files folder: OK"
+				else
+					echo -e "Failed to find database files"
+					exit 1
+				fi
+			}
+
+			disable_http(){
+				echo "Turning off DBMS_XDB HTTP port"
+				echo "EXEC DBMS_XDB.SETHTTPPORT(0);\n exit" | su oracle -c "$SQLPLUS -S $SQLPLUS_ARGS"
+			}
+
+			enable_http(){
+				echo "Turning on DBMS_XDB HTTP port"
+				echo "EXEC DBMS_XDB.SETHTTPPORT(8080);\n exit" | su oracle -c "$SQLPLUS -S $SQLPLUS_ARGS"
+			}
+
+			get_oracle_home(){
+				echo "Getting ORACLE_HOME Path"
+				ORACLE_HOME=`echo -e "var ORACLEHOME varchar2(200);\n EXEC dbms_system.get_env('ORACLE_HOME', :ORACLEHOME);\n PRINT ORACLEHOME;\n exit" | su oracle -c "$SQLPLUS -S $SQLPLUS_ARGS" | grep "/.*/"`
+				echo "ORACLE_HOME found: $ORACLE_HOME"
+			}
+
+			apex_epg_config(){
+				cd $ORACLE_HOME/apex
+				#get_oracle_home
+				echo "Setting up EPG for Apex by running: @apex_epg_config $ORACLE_HOME"				
+				su oracle -c "$SQLPLUS -S $SQLPLUS_ARGS @apex_epg_config $ORACLE_HOME < /dev/null"
+			}
+
+			apex_upgrade(){
+				cd $ORACLE_HOME/apex
+				echo "Upgrading apex..."
+				su oracle -c "$SQLPLUS -S $SQLPLUS_ARGS @apexins SYSAUX SYSAUX TEMP /i/ < /dev/null"
+				echo "Updating apex images"
+				su oracle -c "$SQLPLUS -S $SQLPLUS_ARGS @apxldimg.sql $ORACLE_HOME < /dev/null"
+			}
+
+			conf_rest(){
+				cd $ORACLE_HOME/apex
+				echo "Installing rest..."
+				su oracle -c "$SQLPLUS -S $SQLPLUS_ARGS @apex_rest_config.sql $PASSWORD $PASSWORD < /dev/null"
+			}
+			
+			install_ords(){
+				cd /u01/ords
+				echo "Installing ords..."
+				sed -i -E 's:secret:'$PASSWORD':g' /scripts/ords_unlock_account.sql
+				su oracle -c "$SQLPLUS -S $SQLPLUS_ARGS @/scripts/ords_unlock_account.sql"
+				
+				sed -i -E 's:secret:'$PASSWORD':g' /scripts/ords_params.properties
+				cp -rf /scripts/ords_params.properties /u01/ords/params
+
+				java -jar ords.war configdir /u01
+				java -jar ords.war install simple				
+			}
+
+			verify_connection
+			disable_http
+			apex_upgrade
+			apex_epg_config
+			enable_http
+			conf_rest
+			install_ords
 		fi
 
 		#Check for mounted database files
 		if [ "$(ls -A /tomcat/webapps)" ]; then
 			echo "Tomcat already initilized .. existing data in /tomcat/webapps"
+			echo "Activate Tomcat.."
+			sed -i -e 's/password="secret"/password="'$PASSWORD'"/g' /scripts/tomcat-users.xml
+			mv /scripts/tomcat-users.xml /tomcat/conf
+			echo "Tomcat activated."
 		else
 			echo "Tomcat not initialized. Initializing tomcat."
-
+			
+			sed -i -e 's/password="secret"/password="'$PASSWORD'"/g' /scripts/tomcat-users.xml
+			mv /scripts/tomcat-users.xml /tomcat/conf
 			mv /tomcat/webapps-init /tomcat/webapps
+			cp -rf /u01/ords/ords.war /tomcat/webapps/
+			cp -rf $ORACLE_HOME/apex/images /tomcat/webapps/i			
 
 			echo "Tomcat initialized."
 		fi
+
+		# solution for the problem with timezone
+		#dpkg-reconfigure tzdata
+		echo "Europe/Prague" > /etc/timezone
+		dpkg-reconfigure -f noninteractive tzdata
 
 		/etc/init.d/oracle-xe start
 		/etc/init.d/tomcat start

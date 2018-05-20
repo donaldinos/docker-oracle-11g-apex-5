@@ -10,14 +10,14 @@
 
 case $1 in
 start)
-        sh /tomcat/8/bin/catalina.sh start
+        sh /tomcat/bin/catalina.sh start
         ;;
 stop)
-        sh /tomcat/8/bin/catalina.sh stop
+        sh /tomcat/bin/catalina.sh stop
         ;;
 restart)
-        sh /tomcat/8/bin/catalina.sh stop
-        sh /tomcat/8/bin/catalina.sh start
+        sh /tomcat/bin/catalina.sh stop
+        sh /tomcat/bin/catalina.sh start
         ;;
 esac
 exit 0
